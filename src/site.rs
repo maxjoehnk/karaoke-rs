@@ -27,6 +27,7 @@ struct Queue {
 #[derive(Serialize, Deserialize)]
 struct JsonStatus {
     status: &'static str,
+    message: Option<String>,
 }
 
 fn index(tera: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
@@ -84,6 +85,14 @@ fn queue(
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
+fn player(tera: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
+    let context = HashMap::<String, u64>::new();
+    let html = tera
+        .render("player.html", &context)
+        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
+}
+
 fn add(
     form: web::Form<Song>,
     collection: web::Data<Collection>,
@@ -93,7 +102,10 @@ fn add(
     let kfile = collection.by_song[&hash].clone();
     let cmd = WorkerCommand::AddQueue { kfile };
     worker_sender.send(cmd).unwrap();
-    HttpResponse::Ok().json(JsonStatus { status: "ok" })
+    HttpResponse::Ok().json(JsonStatus {
+        status: "ok",
+        message: None,
+    })
 }
 
 fn playnow(
@@ -105,28 +117,61 @@ fn playnow(
     let kfile = collection.by_song[&hash].clone();
     let cmd = WorkerCommand::PlayNow { kfile };
     worker_sender.send(cmd).unwrap();
-    HttpResponse::Ok().json(JsonStatus { status: "ok" })
+    HttpResponse::Ok().json(JsonStatus {
+        status: "ok",
+        message: None,
+    })
 }
 
 fn next(worker_sender: web::Data<Sender<WorkerCommand>>) -> HttpResponse {
     let cmd = WorkerCommand::Next;
     worker_sender.send(cmd).unwrap();
     sleep(Duration::from_millis(500));
-    HttpResponse::Ok().json(JsonStatus { status: "ok" })
+    HttpResponse::Ok().json(JsonStatus {
+        status: "ok",
+        message: None,
+    })
 }
 
 fn clear(worker_sender: web::Data<Sender<WorkerCommand>>) -> HttpResponse {
     let cmd = WorkerCommand::ClearQueue;
     worker_sender.send(cmd).unwrap();
     sleep(Duration::from_millis(500));
-    HttpResponse::Ok().json(JsonStatus { status: "ok" })
+    HttpResponse::Ok().json(JsonStatus {
+        status: "ok",
+        message: None,
+    })
 }
 
 fn stop(worker_sender: web::Data<Sender<WorkerCommand>>) -> HttpResponse {
     let cmd = WorkerCommand::Stop;
     worker_sender.send(cmd).unwrap();
     sleep(Duration::from_millis(500));
-    HttpResponse::Ok().json(JsonStatus { status: "ok" })
+    HttpResponse::Ok().json(JsonStatus {
+        status: "ok",
+        message: None,
+    })
+}
+
+fn player_next(queue: web::Data<Arc<Mutex<Vec<Kfile>>>>) -> HttpResponse {
+    let _queue = queue.lock().unwrap();
+    if _queue.len() == 0 {
+        drop(_queue);
+        return HttpResponse::Ok().json(JsonStatus {
+            status: "ok",
+            message: None,
+        });
+    }
+
+    let next = _queue[0].mp3_path.clone();
+    let file_name = next.file_name().unwrap().to_str().unwrap();
+    let file_name = file_name.replace(".mp3", "");
+    drop(_queue);
+
+    HttpResponse::Ok().json(JsonStatus {
+        status: "ok",
+        message: Some(file_name),
+    })
 }
 
 fn p404(tera: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
@@ -164,6 +209,8 @@ pub fn run() -> std::io::Result<()> {
 
         let mut static_path = CONFIG.data_path.clone();
         static_path.push("static");
+        let mut song_path = CONFIG.data_path.clone();
+        song_path.push("songs");
 
         App::new()
             .data(collection)
@@ -181,7 +228,10 @@ pub fn run() -> std::io::Result<()> {
             .service(web::resource("/api/next").route(web::post().to(next)))
             .service(web::resource("/api/clear").route(web::post().to(clear)))
             .service(web::resource("/api/stop").route(web::post().to(stop)))
+            .service(web::resource("/player").route(web::get().to(player)))
+            .service(web::resource("/player/next").route(web::get().to(player_next)))
             .service(actix_files::Files::new("/static", static_path))
+            .service(actix_files::Files::new("/songs", song_path))
             .default_service(
                 // 404 for GET request
                 web::resource("")

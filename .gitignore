@@ -1,5 +1,9 @@
-/target
+target/
 **/*.rs.bk
 test.yaml
-/songs
 Rocket.toml
+bin/
+pkg/
+wasm-pack.log
+node_modules
+web-player/songs
