@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 use serde_derive::{Deserialize, Serialize};
 use std::{default::Default, fs::DirBuilder, path::PathBuf};
 
-
 //Default locations, overriden if supplied in Config file or by Argument
 lazy_static! {
     pub static ref CONF_FILE: PathBuf = {
@@ -42,6 +41,7 @@ pub struct Config {
     pub song_path: PathBuf,
     pub data_path: PathBuf,
     pub no_collection_update: bool,
+    pub use_web_player: bool,
 }
 
 impl Default for Config {
@@ -50,6 +50,7 @@ impl Default for Config {
             song_path: SONG_DIR.to_path_buf(),
             data_path: DATA_DIR.to_path_buf(),
             no_collection_update: false,
+            use_web_player: false,
         }
     }
 }
@@ -78,7 +79,8 @@ pub fn load_config(
     config_path: Option<PathBuf>,
     song_path: Option<PathBuf>,
     data_path: Option<PathBuf>,
-    no_collection_update: Option<bool>,
+    refresh_collection: Option<bool>,
+    use_web_player: Option<bool>,
 ) -> Result<Config, failure::Error> {
     //If config_path supplied (from Arg), use that over default location
     let config_file: PathBuf;
@@ -105,8 +107,11 @@ pub fn load_config(
     if let Some(path) = data_path {
         config.data_path = path.to_path_buf();
     }
-    if let Some(bool) = no_collection_update {
-        config.no_collection_update = bool;
+    if let Some(bool) = refresh_collection {
+        config.no_collection_update = !bool;
+    }
+    if let Some(bool) = use_web_player {
+        config.use_web_player = bool;
     }
     println!("Using song dir: {:?}", config.song_path);
     println!("Using data dir: {:?}", config.data_path);
@@ -114,6 +119,7 @@ pub fn load_config(
         "Collection to be refreshed: {:?}",
         !config.no_collection_update
     );
+    println!("Use web player: {:?}", config.use_web_player);
 
     Ok(config)
 }
@@ -127,7 +133,7 @@ mod tests {
     fn test_create_default_config() {
         let config_path = PathBuf::from("tests/test_data/config.yaml");
         assert!(!config_path.is_file());
-        let config = load_config(Some(config_path.clone()), None, None, None).unwrap();
+        let config = load_config(Some(config_path.clone()), None, None, None, None).unwrap();
         assert!(config_path.is_file());
         assert_eq!(config, Config::default());
 
@@ -146,12 +152,14 @@ mod tests {
             Some(song_path),
             Some(data_path),
             Some(true),
+            Some(true),
         )
         .unwrap();
         let _config = Config {
             song_path: PathBuf::from("test/test_data/songs"),
             data_path: PathBuf::from("test/test_data"),
             no_collection_update: true,
+            use_web_player: true,
         };
         assert_eq!(config, _config);
 

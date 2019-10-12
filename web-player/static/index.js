@@ -178,4 +178,28 @@ function run() {
     });
 }
 
-run();
+// Create WebSocket connection.
+const host = window.location.hostname;
+const socket = new WebSocket('ws://' + host + ':9090', 'rust-websocket');
+
+// Connection opened
+socket.addEventListener('open', function (event) {
+    socket.send('Hello Server!');
+});
+
+// Listen for messages
+socket.addEventListener('message', function (event) {
+    console.log('Message from server:', event.data);
+});
+
+// Connection closed
+socket.addEventListener('close', function (event) {
+    console.log('Socket closed');
+});
+
+// Connection error
+socket.addEventListener('error', function (event) {
+    console.log('Socket closed due to error:', event);
+});
+
+// run();

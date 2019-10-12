@@ -34,7 +34,7 @@ pub trait Custom {
 impl Custom for CollectionDB {
     //If file doesn't exist, create default. Load db from file.
     fn initialize(path: &PathBuf) -> Result<Box<CollectionDB>, failure::Error> {
-        let mut db: CollectionDB;
+        let db: CollectionDB;
 
         let mut db_path = path.to_path_buf();
         db_path.push("db.yaml");
@@ -353,6 +353,7 @@ mod tests {
             song_path: song_path.to_path_buf(),
             data_path: data_path.to_path_buf(),
             no_collection_update: false,
+            use_web_player: false,
         };
         let initialize = CollectionDB::initialize(&config.data_path);
         assert!(initialize.is_ok());

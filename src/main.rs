@@ -31,7 +31,9 @@ fn main() -> Result<(), failure::Error> {
     lazy_static::initialize(&CONFIG);
     lazy_static::initialize(&COLLECTION);
     karaoke::embed::unload_files();
-    karaoke::player::run();
+    if !&CONFIG.use_web_player {
+        karaoke::player::run();
+    }
     karaoke::worker::run();
     karaoke::site::run()?;
     Ok(())
@@ -67,9 +69,19 @@ fn get_config() -> Result<Config, failure::Error> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("no-collection-update")
-                .long("no-collection-update")
-                .help("Disable collection update on startup"),
+            Arg::with_name("refresh-collection")
+                .short("r")
+                .long("refresh-collection")
+                .value_name("BOOL")
+                .help("Specify if collection should be refreshed on startup")
+                .takes_value(true)
+                .possible_values(&["true", "false"]),
+        )
+        .arg(
+            Arg::with_name("use-web-player")
+                .short("w")
+                .long("use-web-player")
+                .help("Use web player instead of native player"),
         )
         .get_matches();
 
@@ -93,14 +105,31 @@ fn get_config() -> Result<Config, failure::Error> {
         Some(path) => validate_dir(path),
         None => None,
     };
-    let no_collection_update = if matches.is_present("no-collection-update") {
+    let refresh_collection = if matches.is_present("refresh-collection") {
+        Some(
+            matches
+                .value_of("refresh-collection")
+                .unwrap()
+                .parse::<bool>()
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+    let use_web_player = if matches.is_present("use-web-player") {
         Some(true)
     } else {
         None
     };
 
     //Load config file from config_path, override config with supplied Args, if applicable
-    load_config(config_path, song_path, data_path, no_collection_update)
+    load_config(
+        config_path,
+        song_path,
+        data_path,
+        refresh_collection,
+        use_web_player,
+    )
 }
 
 fn validate_file(path: &str) -> Option<PathBuf> {

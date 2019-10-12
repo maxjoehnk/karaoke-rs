@@ -192,7 +192,7 @@ fn get_server_port() -> u16 {
 }
 
 pub fn run() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=debug");
+    //std::env::set_var("RUST_LOG", "actix_web=debug");
     env_logger::init();
 
     let port = get_server_port();
